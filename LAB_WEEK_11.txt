@@ -1,0 +1,55 @@
+Jawaban Tugas LAB_WEEK_11.txt
+	
+Berikut adalah jawaban untuk pertanyaan tugas berdasarkan Part 3 dari tutorial "Photo and Video using FileProvider and MediaStore."
+
+1. When a user takes a picture, that picture is stored in a path based on the given URI. In which part of the code handles this? (Copy that part of the code as the answer)
+
+Bagian kode yang menangani penyimpanan gambar yang diambil oleh pengguna ke jalur yang ditentukan oleh URI adalah dalam inisialisasi `takePictureLauncher` di `MainActivity.kt`.
+
+Setelah kamera berhasil mengambil gambar, ia memicu callback yang kemudian memanggil `providerFileManager.insertImageToStore(photoInfo)`. Proses ini menyalin file dari lokasi sementara (`photoInfo?.uri`) ke MediaStore. //saya pakai photoInfo!! karena null tidak dibiarkan.	
+
+takePictureLauncher =
+    registerForActivityResult (ActivityResultContracts.TakePicture()) {
+        providerFileManager.insertImageToStore (photoInfo) 
+
+------- 
+
+2. In your FileInfo.kt, there are 5 attributes. On the first attribute, what does the URI refer to? And on the fourth attribute, what does relativePath refer to?
+
+Kelas `FileInfo` memiliki lima atribut untuk memodelkan data file yang diambil.
+
+1. uri (Tipe: Uri)
+Atribut ini merujuk pada URI File Sementara (FileProvider URI). URI ini adalah pointer yang dibuat oleh FileHelper menggunakan FileProvider . Tujuannya adalah untuk memberi tahu aplikasi kamera bawaan Android di mana harus menyimpan data gambar/video yang baru diambil. URI ini bersifat sementara dan memiliki izin terbatas, sehingga membatasi akses dari aplikasi lain saat proses pengambilan berlangsung
+
+2. file (Tipe: File)
+Atribut ini adalah representasi objek File Lokal (java.io.File). Ini menunjuk ke lokasi fisik di penyimpanan internal aplikasi Anda (context.getExternalFilesDir(...)) tempat data file disimpan setelah kamera selesai mengambil gambar/video
+
+3.name (Tipe: String)
+Ini adalah Nama File lengkap yang akan digunakan, misalnya img 1637150400000.jpg atau video_1637150400000.mp4. Nama ini juga akan digunakan sebagai DISPLAY_NAME ketika file secara permanen dimasukkan ke dalam MediaStore.
+
+4. relativePath (Tipe: String) 
+Ini adalah Jalur Direktori MediaStore. Ini menentukan folder standar Android yang terorganisir, seperti Environment.DIRECTORY_PICTURES untuk foto atau Environment.DIRECTORY_MOVIES untuk video . Atribut ini sangat penting karena digunakan untuk menentukan lokasi penyimpanan publik dan permanen di MediaStore pada perangkat yang menjalankan Android 10 (API 29) ke atas
+
+5. mimeType (Tipe: String)
+Ini adalah Tipe Konten File (Media Type) yang mendefinisikan format data, seperti image/jpeg untuk foto atau video/mp4 untuk video. Atribut ini wajib untuk MediaStore karena membantu sistem mengidentifikasi dan mengindeks jenis file tersebut dengan benar.
+
+-----
+
+3. [Bonus] Explain the chronological order from when a user takes a picture until the file is stored in the MediaStore.
+
+Urutan kronologis dari saat pengguna menekan tombol foto hingga file disimpan di MediaStore adalah sebagai berikut:
+
+1. Pengguna Menekan Tombol: Pengguna menekan tombol Photo di `MainActivity.kt.
+2.  Pengecekan Izin: Metode `checkStoragePermission`. Jika aplikasi berjalan di Android 9 ke bawah, izin `WRITE_EXTERNAL_STORAGE` diminta. Jika izin sudah diberikan (atau di Android 10 ke atas), `onPermissionGranted` dieksekusi.
+3. Pembuatan URI Sementara: Fungsi `openImageCapture()` dipanggil. Di dalamnya, `providerFileManager.generatePhotoUri()` membuat: Objek `File` fisik di folder internal aplikasi (`context.getExternalFilesDir(...)`). URI yang terkait dengan file fisik tersebut menggunakan `FileProvider.getUriForFile()`. `FileInfo` (termasuk URI ini) disimpan ke variabel `photoInfo`.
+4. Peluncuran Kamera: `takePictureLauncher.launch(photoInfo?.uri)` dipanggil. [cite\_start]Ini meluncurkan aktivitas kamera bawaan Android dan memberi tahu kamera lokasi (URI sementara) di mana harus menyimpan gambar yang akan diambil.
+5. Pengguna Mengambil Gambar: Pengguna berinteraksi dengan kamera dan mengambil gambar. Kamera menyimpan data gambar ke URI yang disediakan (`photoInfo.uri`).
+6. Callback Hasil Kamera: Setelah pengguna kembali ke `MainActivity`, callback `registerForActivityResult` di `takePictureLauncher` dijalankan.
+7. Penyisipan ke MediaStore (Persistensi): Callback memanggil `providerFileManager.insertImageToStore(photoInfo)`.
+   Metode ini memanggil `insertToStore` dalam single thread executor.
+   `ContentValues` dibuat (termasuk nama file dan `relativePath`).
+   `contentResolver.insert()` dipanggil, membuat entri baru di MediaStore dan menghasilkan `insertedUri` publik.
+   `contentResolver.openInputStream(fileInfo.uri)` membuka file sementara yang diambil oleh kamera.
+   `contentResolver.openOutputStream(insertedUri)` membuka stream ke lokasi publik di MediaStore.
+   `IOUtils.copy(inputStream, outputStream)` menyalin data gambar dari URI sementara ke lokasi MediaStore permanen.
+8. File Tersimpan: Gambar kini dapat diakses oleh aplikasi Galeri atau aplikasi lain melalui MediaStore.
